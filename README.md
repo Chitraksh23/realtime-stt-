@@ -3,8 +3,10 @@ title: Realtime Speech to Text
 emoji: 🎙️
 colorFrom: indigo
 colorTo: blue
-sdk: docker
-app_port: 7860
+sdk: gradio
+sdk_version: 5.9.1
+python_version: "3.11"
+app_file: app.py
 pinned: false
 ---
 
