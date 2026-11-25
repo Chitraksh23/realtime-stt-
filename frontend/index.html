@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Speech to Text · Hindi + English</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🎙️ Live Speech&nbsp;to&nbsp;Text</h1>
+    <span id="engine-badge" class="badge">checking…</span>
+  </header>
+
+  <main>
+    <section class="card" id="live">
+      <h2>Live transcription</h2>
+      <p class="muted">Speak in Hindi, English or a mix of both. Text appears as you speak and is saved when you stop.</p>
+
+      <div class="controls">
+        <select id="language" title="Language">
+          <option value="auto" selected>Auto (Hindi + English mix)</option>
+          <option value="hi">Hindi</option>
+          <option value="en">English</option>
+        </select>
+        <input id="title" type="text" placeholder="Title (optional)" maxlength="200" />
+        <button id="record" class="primary">● Start recording</button>
+      </div>
+
+      <div id="status" class="status">Idle</div>
+      <div id="level"><div id="level-bar"></div></div>
+      <div id="transcript" class="transcript" aria-live="polite">
+        <span class="placeholder">Your transcript will appear here…</span>
+      </div>
+    </section>
+
+    <section class="card" id="history">
+      <div class="row">
+        <h2>Transcription history</h2>
+        <div class="row-actions">
+          <input id="search" type="search" placeholder="Search…" />
+          <button id="new-note">＋ New note</button>
+        </div>
+      </div>
+      <div id="count" class="muted"></div>
+      <div id="list"></div>
+      <div class="pager">
+        <button id="prev">← Prev</button>
+        <span id="page-info"></span>
+        <button id="next">Next →</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="editor">
+    <form method="dialog" id="editor-form">
+      <h3 id="editor-heading">Edit transcription</h3>
+      <label>Title <input id="ed-title" maxlength="200" required /></label>
+      <label>Language <input id="ed-lang" maxlength="50" placeholder="e.g. hi,en" /></label>
+      <label>Text <textarea id="ed-text" rows="10"></textarea></label>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost" formnovalidate>Cancel</button>
+        <button id="ed-save" value="save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
