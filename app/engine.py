@@ -4,6 +4,7 @@ WhisperEngine : faster-whisper (open source, CTranslate2). Handles Hindi + Engli
 MockEngine    : deterministic fake used by tests and for demoing the UI without a model.
 """
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Tuple
 
@@ -49,7 +50,7 @@ class WhisperEngine(BaseEngine):
         log.info("Loading Whisper model %s (%s)...", settings.whisper_model, settings.whisper_compute_type)
         self.model = WhisperModel(
             settings.whisper_model,
-            device="auto",
+            device=os.getenv("WHISPER_DEVICE", "cpu"),
             compute_type=settings.whisper_compute_type,
         )
         # warm-up so the first real request is fast
