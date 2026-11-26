@@ -2,13 +2,15 @@ import os
 
 import uvicorn
 
-try:  # satisfies ZeroGPU's startup check if the Space is on ZeroGPU hardware
+try:
+    # ZeroGPU refuses to start a Space with no @spaces.GPU function.
+    # This dummy is never called, so it uses no GPU time.
     import spaces
 
-    @spaces.GPU
-    def _noop():
+    @spaces.GPU(duration=1)
+    def _dummy_gpu():
         return None
-except ImportError:
+except ImportError:  # running locally, the package only exists on Spaces
     pass
 
 from app.main import app  # noqa: E402,F401
