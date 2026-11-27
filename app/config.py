@@ -11,8 +11,14 @@ def _normalize_db_url(url: str) -> str:
 class Settings:
     database_url: str = _normalize_db_url(os.getenv("DATABASE_URL", "sqlite:///./data/app.db"))
 
-    # "whisper" (faster-whisper, open source) or "mock"
-    stt_engine: str = os.getenv("STT_ENGINE", "whisper").lower()
+    # "gemini" (Gemini Live API, default) | "whisper" (self-hosted faster-whisper) | "mock" (tests)
+    stt_engine: str = os.getenv("STT_ENGINE", "gemini").lower()
+
+    # Gemini Live API (free key from https://aistudio.google.com/apikey)
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.5-transcribe-live")
+    # "replace": each interim message is the full current hypothesis; "append": interim messages are fragments
+    gemini_interim_mode: str = os.getenv("GEMINI_INTERIM_MODE", "replace").lower()
     whisper_model: str = os.getenv("WHISPER_MODEL", "small")
     whisper_compute_type: str = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
     whisper_beam_size: int = int(os.getenv("WHISPER_BEAM_SIZE", "2"))
@@ -23,7 +29,7 @@ class Settings:
     partial_every_seconds: float = float(os.getenv("PARTIAL_EVERY_SECONDS", "1.0"))
     silence_end_seconds: float = float(os.getenv("SILENCE_END_SECONDS", "0.8"))
     max_utterance_seconds: float = float(os.getenv("MAX_UTTERANCE_SECONDS", "20"))
-    max_session_seconds: float = float(os.getenv("MAX_SESSION_SECONDS", "900"))
+    max_session_seconds: float = float(os.getenv("MAX_SESSION_SECONDS", "570"))  # Gemini Live sessions cap at 10 min
     min_speech_rms: float = float(os.getenv("MIN_SPEECH_RMS", "0.012"))
 
 

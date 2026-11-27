@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .db import SessionLocal, init_db
 from .engine import get_engine
+from .gemini_live import GeminiSession
 from .models import Transcription
 from .routes import router
 from .schemas import TranscriptionOut
@@ -42,8 +43,11 @@ app.include_router(router)
 @app.get("/api/health")
 def health():
     eng = get_engine()
-    return {"status": "ok", "engine": eng.name, "model": settings.whisper_model if eng.name == "whisper" else None,
-            "model_ready": eng.ready}
+    model = {"whisper": settings.whisper_model, "gemini": settings.gemini_model}.get(eng.name)
+    out = {"status": "ok", "engine": eng.name, "model": model, "model_ready": eng.ready}
+    if eng.name == "gemini" and not settings.gemini_api_key:
+        out["detail"] = "GEMINI_API_KEY is not configured on the server"
+    return out
 
 
 def _save_session(st: StreamingTranscriber, title: str | None) -> dict:
@@ -72,12 +76,22 @@ async def ws_transcribe(ws: WebSocket):
     """
     await ws.accept()
     engine = get_engine()
-    st: StreamingTranscriber | None = None
+    st = None  # StreamingTranscriber (whisper/mock) or GeminiSession
     title = None
     started = time.monotonic()
+    send_lock = asyncio.Lock()
+
+    async def emit(ev: dict):
+        async with send_lock:
+            await ws.send_json(ev)
+
     try:
+        if engine.name == "gemini" and not settings.gemini_api_key:
+            await emit({"type": "error", "message": "Server is missing GEMINI_API_KEY"})
+            await ws.close()
+            return
         if not engine.ready:
-            await ws.send_json({"type": "loading", "message": "Speech model is still loading, please wait..."})
+            await emit({"type": "loading", "message": "Speech model is still loading, please wait..."})
             while not engine.ready:
                 await asyncio.sleep(0.5)
 
@@ -89,35 +103,45 @@ async def ws_transcribe(ws: WebSocket):
             if msg.get("text") is not None:
                 data = json.loads(msg["text"])
                 if data.get("type") == "start":
-                    st = StreamingTranscriber(engine, data.get("language", "auto"))
+                    lang = data.get("language", "auto")
+                    if engine.name == "gemini":
+                        st = GeminiSession(lang, emit)
+                        await st.start()
+                    else:
+                        st = StreamingTranscriber(engine, lang)
                     title = data.get("title")
-                    await ws.send_json({"type": "ready"})
+                    await emit({"type": "ready"})
                 elif data.get("type") == "stop":
                     break
             elif msg.get("bytes") is not None and st is not None:
                 if time.monotonic() - started > settings.max_session_seconds:
-                    await ws.send_json({"type": "error", "message": "Maximum session length reached"})
+                    await emit({"type": "error", "message": "Maximum session length reached"})
                     break
                 for ev in await st.feed(msg["bytes"]):
-                    await ws.send_json(ev)
+                    await emit(ev)
 
         if st is not None:
             for ev in await st.flush():
-                await ws.send_json(ev)
+                await emit(ev)
             if st.text:
                 saved = await asyncio.to_thread(_save_session, st, title)
-                await ws.send_json({"type": "saved", "transcription": saved})
+                await emit({"type": "saved", "transcription": saved})
             else:
-                await ws.send_json({"type": "empty", "message": "No speech detected, nothing saved."})
+                await emit({"type": "empty", "message": "No speech detected, nothing saved."})
         await ws.close()
     except WebSocketDisconnect:
         # abrupt disconnect (tab closed): still persist what we have
-        if st is not None and st.text:
-            await asyncio.to_thread(_save_session, st, title)
+        if st is not None:
+            if hasattr(st, "aclose"):
+                await st.aclose()
+            if st.text:
+                await asyncio.to_thread(_save_session, st, title)
     except Exception as exc:  # pragma: no cover
         log.exception("ws error: %s", exc)
+        if st is not None and hasattr(st, "aclose"):
+            await st.aclose()
         try:
-            await ws.send_json({"type": "error", "message": str(exc)})
+            await emit({"type": "error", "message": str(exc)})
             await ws.close()
         except Exception:
             pass

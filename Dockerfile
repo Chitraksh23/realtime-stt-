@@ -1,16 +1,18 @@
+# Optional: self-hosted Whisper variant (needs >=2 GB RAM). The default deployment uses Gemini Live and needs no Docker.
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HOME=/home/user/.cache/huggingface \
-    PORT=7860
+    PORT=7860 \
+    STT_ENGINE=whisper
 
 # Hugging Face Spaces runs containers as uid 1000
 RUN useradd -m -u 1000 user
 WORKDIR /home/user/app
 
-COPY --chown=user requirements.txt .
-RUN pip install -r requirements.txt
+COPY --chown=user requirements.txt requirements-whisper.txt ./
+RUN pip install -r requirements-whisper.txt
 
 USER user
 ARG WHISPER_MODEL=small

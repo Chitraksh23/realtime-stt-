@@ -14,6 +14,7 @@ async function checkHealth() {
   try {
     const h = await api("/api/health");
     if (h.model_ready) { badge.textContent = `${h.engine}${h.model ? " · " + h.model : ""} ready`; badge.className = "badge ok"; }
+    else if (h.detail) { badge.textContent = h.detail; badge.className = "badge warn"; }
     else { badge.textContent = "loading speech model…"; badge.className = "badge warn"; setTimeout(checkHealth, 2000); }
   } catch { badge.textContent = "server unreachable"; badge.className = "badge warn"; }
 }

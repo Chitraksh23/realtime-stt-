@@ -4,7 +4,6 @@ WhisperEngine : faster-whisper (open source, CTranslate2). Handles Hindi + Engli
 MockEngine    : deterministic fake used by tests and for demoing the UI without a model.
 """
 import logging
-import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Tuple
 
@@ -50,7 +49,7 @@ class WhisperEngine(BaseEngine):
         log.info("Loading Whisper model %s (%s)...", settings.whisper_model, settings.whisper_compute_type)
         self.model = WhisperModel(
             settings.whisper_model,
-            device=os.getenv("WHISPER_DEVICE", "cpu"),
+            device="auto",
             compute_type=settings.whisper_compute_type,
         )
         # warm-up so the first real request is fast
@@ -102,11 +101,26 @@ class WhisperEngine(BaseEngine):
         return " ".join(parts).strip(), info.language
 
 
+class GeminiEngine(BaseEngine):
+    """Marker engine: the actual streaming is done by app.gemini_live.GeminiSession."""
+    name = "gemini"
+
+    def load(self) -> None:
+        self.ready = bool(settings.gemini_api_key)
+        if not self.ready:
+            log.error("GEMINI_API_KEY is not set")
+
+
 _engine: Optional[BaseEngine] = None
 
 
 def get_engine() -> BaseEngine:
     global _engine
     if _engine is None:
-        _engine = MockEngine() if settings.stt_engine == "mock" else WhisperEngine()
+        if settings.stt_engine == "mock":
+            _engine = MockEngine()
+        elif settings.stt_engine == "whisper":
+            _engine = WhisperEngine()
+        else:
+            _engine = GeminiEngine()
     return _engine
